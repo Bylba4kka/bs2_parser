@@ -1,0 +1,16 @@
+[
+    {
+        "name": "XSRF-TOKEN",
+        "value": "eyJpdiI6Ikt6amNFUXNUYWdIL0d2S3NwYi9ZbFE9PSIsInZhbHVlIjoiQW00YmlJSnJVbkNhSE1MNUpwV2V1ODh0TkZmZ0ZtV3lES29Ca0UvRDZhNW5MSk8vc0Q1V0R0WEJxVE5DRWRnZWp0UUlBbWdIcGZHQ3FDYXNlT0FiTC9KY3A1TmdKUno3MWgveGExWlVkYUFBS3hCb3VCVTErNFZEcVhva2x5WDAiLCJtYWMiOiJmOGE3NDI1YTg5ZTJkOWY4NDhlZTQ5YjNjMDQwOGRiOTY5N2E0ZDAxNDYzMjhmODExODljYmQxM2EzNmU1MGQ3IiwidGFnIjoiIn0%3D",
+        "domain": "m.bs2site.at",
+        "path": "/",
+        "expires": 1734267020
+    },
+    {
+        "name": "laravel_ssn",
+        "value": "eyJpdiI6InBLcVF2S3JwT0lzVTR3dDR5SE1taHc9PSIsInZhbHVlIjoiOXI5K1psUnBOdlNhSkRKTUtDMm03Q2kvUml4RTFTRlNQcG1YNWp2dWdTcE9Uc29hMUdCMUo5dk1KNHlBQW5SZWZEMDhQclZsODFFMDAxWFpCRThSQlU3OEQralVwcW4vYnVpbjlSc1Y2d1JocVdtSEVJMnhKekhKOWVKTENQazciLCJtYWMiOiJhZjE2ZmY0YjIyYWJhZTc2ODdkYjM2NGU2YjYyM2RhYzhiMDFiYWFlYTg5MzUyNDFmNzAyMDVkZTgyNzUzODE5IiwidGFnIjoiIn0%3D",
+        "domain": "m.bs2site.at",
+        "path": "/",
+        "expires": 1734267020
+    }
+]

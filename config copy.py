@@ -1,0 +1,6 @@
+BASE_URL = "https://m.bs2site.at"
+# # BASE_URL = "https://bs2best.at"
+LOGIN = ""
+PASSWORD = ""
+COOKIE_FILE = "cookies.json"
+RUCAPTCHA_API_KEY = ""
