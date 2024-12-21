@@ -4,3 +4,4 @@ config.py
 cookie.json
 parsercard
 __pycache__
+media

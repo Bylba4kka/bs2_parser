@@ -1,4 +1,6 @@
-httpx
+httpx[socks] 
 2captcha-python
 bs4
 aiofiles
+lxml
+aiosqlite
