@@ -31,8 +31,6 @@ class Parser:
         self.cookies = None
         self.base_url = BASE_URL
         self.link_list = []
-        self.stores_reviews = []
-        self.exchanges_reviews = []
         self.headers = {"User-Agent": random.choice(user_agents)}
 
     def get_proxies(self):
@@ -68,6 +66,7 @@ class Parser:
         """
         CREATE TABLE IF NOT EXISTS stores (
         name TEXT PRIMARY KEY,
+        link TEXT,
         sales TEXT,
         deposite TEXT,
         rating TEXT,
@@ -219,10 +218,9 @@ class Parser:
                 'admin': admin,
                 'rating': rating
             }
-            if exchanges:
-                self.exchanges_reviews.append(review_info)
-            else:
-                self.stores_reviews.append(review_info)
+            return review_info
+
+             
 
         
     async def parse_data(self, proxy, links):
@@ -247,8 +245,9 @@ class Parser:
                             "directions": directions,
                             "deposite": deposite,
                             }
-                        await self.process_comments(link, 1, session, exchanges=True)
-                        exchanges_data["reviews"] = self.exchanges_reviews
+                        
+                        exchanges_reviews = await self.process_comments(link, 1, session, exchanges=True)
+                        exchanges_data["reviews"] = exchanges_reviews
 
                         await self.sql(
                         """
@@ -324,6 +323,7 @@ class Parser:
 
                         store_data = {
                             "name": name,
+                            "link": link,
                             "sales": sales,
                             "deposite": deposite,
                             "rating": rating,
@@ -341,23 +341,28 @@ class Parser:
                         if paginate > REVIEWS_AMOUNT:
                             paginate = REVIEWS_AMOUNT
                         tasks = []
+                        stores_reviews = []
                         for page in range(1, paginate + 1):
                             tasks.append(self.process_comments(link, page, session))
                             if len(tasks) == 10:
-                                await asyncio.gather(*tasks)
+                                res = await asyncio.gather(*tasks)
+                                stores_reviews.extend(res)
                                 tasks = []
                         if len(tasks) != 0:
-                            await asyncio.gather(*tasks)
+                            res = await asyncio.gather(*tasks)
+                            stores_reviews.extend(res)
                             tasks = []
 
-                        store_data["reviews"] = self.stores_reviews
+                        store_data["reviews"] = stores_reviews
 
                         await self.sql(
                         """
                         INSERT INTO stores
-                        (name, sales, deposite, rating, rules, vacancy, promotions, products, reviews) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (name) 
+                        (name, link, sales, deposite, rating, rules, vacancy, promotions, products, reviews) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (name) 
                         DO UPDATE SET
+                            name = EXCLUDED.name,
+                            link = EXCLUDED.link,
                             sales = EXCLUDED.sales,
                             deposite = EXCLUDED.deposite,
                             rating = EXCLUDED.rating,
@@ -368,12 +373,12 @@ class Parser:
                             reviews = EXCLUDED.reviews;
                         """,
                         (
-                        store_data["name"], store_data["sales"], store_data["deposite"], 
+                        store_data["name"], store_data["link"], store_data["sales"], store_data["deposite"], 
                         store_data["rating"], store_data["rules"], store_data["vacancy"], 
                         store_data["promotions"], json.dumps(store_data["products"], ensure_ascii=False), 
                         json.dumps(store_data["reviews"], ensure_ascii=False)
                         )
-                    )
+                    )   
                         logger.info("Данные успешно записаны в БД (stores)")
 
                     else:
