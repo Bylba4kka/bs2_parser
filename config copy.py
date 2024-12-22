@@ -1,6 +1,19 @@
+# Зеркала
 BASE_URL = "https://m.bs2site.at"
-# # BASE_URL = "https://bs2best.at"
+# BASE_URL = "https://bs2best.at"
+
+# Данные авторизации
 LOGIN = ""
 PASSWORD = ""
-COOKIE_FILE = "cookies.json"
+
+# Апи ключ от рукапчи
 RUCAPTCHA_API_KEY = ""
+
+# Название базы данных
+DB_NAME = "my_sqllite_db"
+# Параметр для ввода капчи вручную. True - вручную. False - Автоматически через рукапчу
+MANUAL = True
+
+# Так как на один магазин по 4к отзывов доходить может, то чтобы не ломать сайт и чтобы был меньше шанс забанить скрипт, 
+# указываем количество страниц отзывов на магазин.
+REVIEWS_AMOUNT = 10
