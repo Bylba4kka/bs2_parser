@@ -4,3 +4,4 @@ bs4
 aiofiles
 lxml
 aiosqlite
+tenacity

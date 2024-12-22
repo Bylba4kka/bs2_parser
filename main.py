@@ -15,6 +15,7 @@ import aiosqlite
 from datetime import datetime
 from bs4 import BeautifulSoup
 from typing import Any, Optional
+from tenacity import retry, stop_after_attempt, wait_fixed
 from config import BASE_URL, DB_NAME, REVIEWS_AMOUNT
 from cookie import cookie_manager
 from user_agents import user_agents
@@ -221,13 +222,12 @@ class Parser:
             return review_info
 
              
-
-        
+    @retry(stop=stop_after_attempt(5), wait=wait_fixed(3))
     async def parse_data(self, proxy, links):
         """
         Парсинг всей интерисующей нас информации
         """
-        async with httpx.AsyncClient(proxy=proxy, cookies=self.cookies, timeout=60, follow_redirects=True, headers=self.headers) as session:
+        async with httpx.AsyncClient(proxy=proxy, cookies=self.cookies, timeout=120, follow_redirects=True, headers=self.headers) as session:
             for link in links:
                 try:
                     r = await self.process_request(link, session)
@@ -344,7 +344,7 @@ class Parser:
                         stores_reviews = []
                         for page in range(1, paginate + 1):
                             tasks.append(self.process_comments(link, page, session))
-                            if len(tasks) == 10:
+                            if len(tasks) == 5:
                                 res = await asyncio.gather(*tasks)
                                 stores_reviews.extend(res)
                                 tasks = []
@@ -380,7 +380,7 @@ class Parser:
                         )
                     )   
                         logger.info("Данные успешно записаны в БД (stores)")
-
+                        return
                     else:
                         logger.info(f"Недопустимая ссылка - {link}")
                 except Exception as ex:
@@ -415,9 +415,6 @@ class Parser:
         await self.parse()
 
 x = Parser()
-
-
-
 asyncio.run(x.main())
 
 
