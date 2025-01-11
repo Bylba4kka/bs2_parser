@@ -15,6 +15,7 @@ import aiofiles
 import asyncio
 from functools import partial
 
+from tenacity import retry, stop_after_attempt, wait_fixed
 from config import BASE_URL, LOGIN, PASSWORD, RUCAPTCHA_API_KEY, MANUAL
 from user_agents import user_agents
 
@@ -63,8 +64,9 @@ class CookieManager:
         """Сохранять изображение капчи (для откладки)"""
         if not os.path.exists("images"):
             os.makedirs("images")
-        filename = self.random_string(3)
-        async with aiofiles.open(f"images/{filename}.jpg", "wb") as file:
+        # filename = self.random_string(3)
+        filename = "captcha.jpg"
+        async with aiofiles.open(filename, "wb") as file:
             await file.write(captcha)
         logger.info(f"Капча успешно сохранена под названием: {filename}")
 
@@ -109,7 +111,7 @@ class CookieManager:
     async def get_captcha_image(self, html, session: httpx.AsyncClient):
         """Получить изображение капчи и секретный токен"""
         soup = BeautifulSoup(html, "html.parser")
-        captcha_url = soup.find("img", id="captcha-img")["src"]
+        captcha_url = BASE_URL + soup.find("img", id="captcha-img")["src"]
         captcha_token = soup.find("input",{'type': 'hidden', 'name': '_token'})["value"]
         r = await session.get(captcha_url, headers=self.headers)
         r.raise_for_status()
@@ -138,34 +140,46 @@ class CookieManager:
             url = f"{self.base_url}/login"
         else:
             url = f"{self.base_url}/"
-        for i in range(1, 30):
+        for i in range(1, 100):
             if i == 6:
                 logger.info("Не удалось пройти капчу")
                 return False
             r = await session.get(url=url, headers=self.headers)
             r.raise_for_status()
             html = r.text
+            soup = BeautifulSoup(html, "html.parser")
             captcha_base64, captcha_token = await self.get_captcha_image(html, session)
             loop = asyncio.get_event_loop()
             solver_with_args = partial(self.captcha_solver, captcha_base64)
             captcha_solution = await loop.run_in_executor(None, solver_with_args)
             logger.info(f"Решение капчи - {captcha_solution}")
+            # <input class="hidden" name="En&amp;Sq%c" value="$8ci%VWsla"></form>
             if pass_flag:
+                secret_key =  soup.find("input", {'class': 'hidden'})["name"].strip() 
+                secret_value = soup.find("input", {'class': 'hidden'})["value"].strip() 
+                data = {"_token": captcha_token, "captcha": captcha_solution, secret_key: secret_value}
+            else:
+                {"_token": captcha_token, "captcha": captcha_solution}
+            
+            if pass_flag:
+                url_condition = self.base_url + "/login/"
                 r = await session.post(
                         url=f"{self.base_url}/pass",
-                        headers=self.headers | {"Accept": "application/json, text/plain, */*"},
-                        data={"_token": captcha_token, "captcha": captcha_solution}
+                        headers=self.headers | {"Accept": "application/json, text/plain, */*", "Referer": "https://m.bs2site.at/pass"},
+                        data=data
                         )
             if login_flag:
+                url_condition = self.base_url + "/"
                 r = await session.post(
                     f"{self.base_url}/login", 
                     headers=self.headers | {"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Referer": "https://m.bs2site.at/login"}, 
                     data={"_token": captcha_token, "login": self.login, "password": self.password, "captcha":str(captcha_solution), "v1":"1"}
                     )
-            if not r.url == self.base_url:
+            print(f"{r.url=}")
+            if not r.url == url_condition:
                 with open("error.html", "w", encoding="utf-8") as f:
                     f.write(r.text)
-                logger.info(f"Неверная капча, попытка {i}/30")
+                logger.info(f"Неверная капча, попытка {i}/100")
                 await asyncio.sleep(1)
                 continue
             else:
@@ -173,6 +187,7 @@ class CookieManager:
                 return True
 
 
+    # @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
     async def do_auth(self, session: httpx.AsyncClient):
         """Главная логика авторизации на сайте"""
         session.cookies.clear()
@@ -210,6 +225,7 @@ class CookieManager:
         """Точка входа для получения куки"""
         proxy = random.choice(self.proxies_list)
         async with httpx.AsyncClient(proxy=proxy, headers=self.headers, timeout=60, follow_redirects=True) as session:
+            return await self.do_auth(session)
             cookies = await self.load_cookies()
             self.proxies_list = self.get_proxies()
             valid = await self.validate_cookies(session)

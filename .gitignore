@@ -3,6 +3,11 @@ venv
 config.py
 cookie.json
 parsercard
+playwright_test.py
+my_sqllite_db copy.sqlite3
+*test.*
+captcha.jpg
 __pycache__
 media
 error.html
+cookies.json
