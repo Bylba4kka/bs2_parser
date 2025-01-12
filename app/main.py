@@ -137,7 +137,6 @@ class Parser:
                 continue
             link = row.find('a', class_="link-hover text-sm")['href']
             self.link_list.append(link)
-            break
 
         # stores
         r = await session.get(f"{self.base_url}/stores")
@@ -152,7 +151,6 @@ class Parser:
             if len(tasks) == 10:
                 await asyncio.gather(*tasks)
                 tasks = []
-            break
         if len(tasks) != 0:
             await asyncio.gather(*tasks)
             tasks = []
