@@ -4,6 +4,7 @@
 
 import json
 import logging
+import os
 import random
 import re
 import time
@@ -419,7 +420,10 @@ class Parser:
         """
         Асинхронная функция для выполнения SQL-запросов в SQLite.
         """
-        database = DB_NAME + ".sqlite3"
+        if os.name == "nt":
+            database = DB_NAME + ".sqlite3"
+        else:
+            database = "/home/bs2_parser/" + DB_NAME + ".sqlite3"
         params = params or ()
         async with aiosqlite.connect(database) as db:
             db.row_factory = aiosqlite.Row

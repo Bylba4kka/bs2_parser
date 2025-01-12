@@ -14,7 +14,7 @@ docker rm -f bs2_parser || true
 ```
 docker run -d --name bs2_parser --restart=always bs2_parser
 ```
-# когда ставим на линуксе, монтируем папку, чтобы логи сохранялись в корень проекта
+# когда ставим на линуксе, монтируем папку, чтобы логи сохранялись в корень проекта ибд чтобы сохранялась в корень проекта
 ```
 docker run -d --name bs2_parser --restart=always -v /home/bs2_parser:/home/bs2_parser bs2_parser
 ```
