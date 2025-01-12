@@ -6,6 +6,7 @@ import json
 import logging
 import random
 import re
+import time
 import traceback
 import httpx 
 import asyncio
@@ -440,7 +441,18 @@ class Parser:
         async with httpx.AsyncClient(cookies=self.cookies, proxy=proxy, headers=self.headers, timeout=120, follow_redirects=True) as session:
             await self.parse(session)
 
-x = Parser()
-asyncio.run(x.main())
 
 
+parser = Parser()
+# Запуск раз в 24 часа
+if __name__ == '__main__':
+    runned_at = datetime.now().strftime('%Y%m%d')
+    asyncio.run(parser.main()) # При первичном запуске сразу запускаем
+    while True:
+        time.sleep(3600)
+        now = datetime.now().strftime('%Y%m%d')
+
+        if runned_at != now:
+            runned_at = datetime.now().strftime('%Y%m%d')
+            
+            asyncio.run(parser.main())
