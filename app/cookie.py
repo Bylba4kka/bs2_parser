@@ -23,7 +23,7 @@ logging.basicConfig(
     level=logging.INFO, 
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
     handlers=[logging.StreamHandler(),
-              logging.FileHandler("main.log", encoding="utf-8")],
+              logging.FileHandler("/home/bs2_parser/main.log", encoding="utf-8")],
     
 )
 logger = logging.getLogger(__name__)

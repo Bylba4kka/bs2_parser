@@ -10,10 +10,14 @@ docker build -t bs2_parser .
 ```
 docker rm -f bs2_parser || true
 ```
+# на винде
 ```
 docker run -d --name bs2_parser --restart=always bs2_parser
 ```
-
+# когда ставим на линуксе, монтируем папку, чтобы логи сохранялись в корень проекта
+```
+docker run -d --name bs2_parser --restart=always -v /home/bs2_parser:/home/bs2_parser bs2_parser
+```
 # Настройка скрипта config.py
 
 `BASE_URL` - Зеркала Ссылку указывем без / в конце
