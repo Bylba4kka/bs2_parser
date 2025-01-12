@@ -450,7 +450,7 @@ parser = Parser()
 # Запуск раз в 24 часа
 if __name__ == '__main__':
     runned_at = datetime.now().strftime('%Y%m%d')
-    asyncio.run(parser.main()) # При первичном запуске сразу запускаем
+    # asyncio.run(parser.main()) # При первичном запуске сразу запускаем
     while True:
         time.sleep(3600)
         now = datetime.now().strftime('%Y%m%d')
