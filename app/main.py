@@ -412,7 +412,8 @@ class Parser:
                     err = f'{result.__class__.__name__}: {str(result)}\n{tb}'
                     logging.error(err)
                 else:
-                    stores_reviews.extend(result)
+                    if result:
+                        stores_reviews.extend(result)
         
         return stores_reviews
 
