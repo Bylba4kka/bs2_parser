@@ -22,7 +22,9 @@ from user_agents import user_agents
 logging.basicConfig(
     level=logging.INFO, 
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
-    handlers=[logging.StreamHandler()],
+    handlers=[logging.StreamHandler(),
+              logging.FileHandler("main.log", encoding="utf-8")],
+    
 )
 logger = logging.getLogger(__name__)
 

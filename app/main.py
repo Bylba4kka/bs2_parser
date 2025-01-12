@@ -23,7 +23,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("main.log")],
+        logging.FileHandler("main.log", encoding="utf-8")],
 )
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ class Parser:
         name TEXT PRIMARY KEY,
         link TEXT NOT NULL,
         directions TEXT NOT NULL,
-        deposite INT NOT NULL,
+        deposite FLOAT NOT NULL,
         reviews JSON,
         ts DATETIME DEFAULT CURRENT_TIMESTAMP
         );
@@ -69,9 +69,9 @@ class Parser:
         CREATE TABLE IF NOT EXISTS stores (
         name TEXT PRIMARY KEY,
         link TEXT,
-        sales TEXT,
-        deposite INT,
-        rating TEXT,
+        sales INT,
+        deposite FLOAT,
+        rating FLOAT,
         rules TEXT,
         vacancy TEXT,
         promotions TEXT,
@@ -136,7 +136,7 @@ class Parser:
                 continue
             link = row.find('a', class_="link-hover text-sm")['href']
             self.link_list.append(link)
-            # break
+            break
 
         # stores
         r = await session.get(f"{self.base_url}/stores")
@@ -151,7 +151,7 @@ class Parser:
             if len(tasks) == 10:
                 await asyncio.gather(*tasks)
                 tasks = []
-            # break
+            break
         if len(tasks) != 0:
             await asyncio.gather(*tasks)
             tasks = []
@@ -188,8 +188,9 @@ class Parser:
             rating = review_div.find("svg", style=True)["style"].split(":")[1].strip()
             try:
                 purchases = review_div.find("svg", class_="sm:hidden align-bottom mr-0.5").next_sibling.strip()
-            except:
-                logger.info(f"Нет purchases на ссылке {link}")
+                purchases = int(purchases.strip())
+            except Exception as ex:
+                # logger.error(f"Нет purchases на ссылке {link}. Ошибка: {ex}")
                 purchases = None
             date_string = review_div.find("span", class_='text-default-150').text.replace("в", " ").strip()
             date = datetime.strptime(date_string, "%d/%m/%y %H:%M")
@@ -217,7 +218,7 @@ class Parser:
             review_info = {
                 'nickname': nickname,
                 'comment_text': comment_text,
-                'purchases': int(purchases.strip()),
+                'purchases': purchases,
                 'datе': date,
                 'img': img,
                 'admin': admin,
@@ -249,7 +250,7 @@ class Parser:
                         "name": name,
                         "link": BASE_URL + link,
                         "directions": directions,
-                        "deposite": int(deposite.replace("₿","").strip()),
+                        "deposite": float(deposite.replace("₿","").strip()),
                         }
                     
                     exchanges_reviews = await self.process_comments(link, 1, session, exchanges=True)
@@ -281,7 +282,7 @@ class Parser:
                     name = header.find("h1", class_="text-default-50 text-3xl").text.strip()
                     spans = header.find_all('span')
                     rating = soup.find('span', {'class': 'flex items-center gap-1 mr-auto lg:mr-0'}).text.strip()
-                    sales = spans[1].get_text().split(":")[1].strip()
+                    sales = int(spans[1].get_text().split(":")[1].strip())
                     deposite = spans[2].get_text(strip=True).split(":")[1].strip()
                     try:
                         paginate = int(soup.find("a", class_="page--last").text)
@@ -308,7 +309,7 @@ class Parser:
                                 "link": product_link,
                                 "description": description,
                                 "price": int(price.replace("₽", "").strip()),
-                                "price_btc": int(price_btc.replace("₿", "").replace("~", "").strip()),
+                                "price_btc": float(price_btc.replace("₿", "").replace("~", "").strip()),
                                 "unit ": unit,
                                 "img_link": img_link
                                 }
@@ -333,7 +334,7 @@ class Parser:
                         "name": name,
                         "link": link,
                         "sales": sales,
-                        "deposite": int(deposite.replace("₿","").strip()),
+                        "deposite": float(deposite.replace("₿","").strip()),
                         "rating": float(rating.strip()),
                         "rules": rules,
                         "vacancy": vacancy,

@@ -1,12 +1,17 @@
+# Начало
+
+Сперва указываем всё в config.py потом запускает контейнер!
+
+
 # Запуск скрипта 
 ```
-docker build -t bs2_patser .
+docker build -t bs2_parser .
 ```
 ```
-docker rm -f bs2_patser || true
+docker rm -f bs2_parser || true
 ```
 ```
-docker run -d --name bs2_patser --restart=always bs2_patser
+docker run -d --name bs2_parser --restart=always bs2_parser
 ```
 
 # Настройка скрипта config.py
@@ -105,3 +110,8 @@ docker run -d --name bs2_patser --restart=always bs2_patser
     'rating' - TEXT рейтинг комментатора. 
 }
 ```
+
+
+## Контакты
+
+[Тг разраба для вопросов](https://t.me/Bbylba4kaa)

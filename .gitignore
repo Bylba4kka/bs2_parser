@@ -6,6 +6,7 @@ parsercard
 playwright_test.py
 my_sqllite_db copy.sqlite3
 *test.*
+main.log
 captcha.jpg
 __pycache__
 media

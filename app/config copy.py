@@ -1,22 +1,28 @@
 # Зеркала Ссылку указывем без / в конце
-# BASE_URL = "https://m.bs2site.at"
-# BASE_URL = "https://bs2best.at"
-BASE_URL = "https://blacksprut-net.ru"
-# BASE_URL = "https://bs2.gl"
+# Сайты зеркала
+# BASE_URL = "https://m.bs2site.at" # тут Cloudflare так что гг 
+# BASE_URL = "https://bs2best.at" # тут обсуфикация и aeza.net так что гг 
+BASE_URL = "https://blacksprut-net.ru" # тут защит нет но ссылки которые в html на страницах без доменов в отличии от верхних двух сайтах
+# Например https://blacksprut-net.ru/stores/818/vacancy и /818/vacancy
+# BASE_URL = "https://bs2.gl" # тут защит нет  но ссылки которые в html на страницах без доменов в отличии от верхних двух сайтах
+
+# Куда будем отсылать данные
+HOST = "https://123.requestcatcher.com/"
 
 # Данные авторизации
 LOGIN = ""
-PASSWORD = ""
+PASSWORD = "-"
 
 # Апи ключ от рукапчи
 RUCAPTCHA_API_KEY = ""
 
 # Название базы данных
 DB_NAME = "my_sqllite_db"
+
 # Параметр для ввода капчи вручную. True - вручную. Если запускаем вручную. False - Автоматически через рукапчу. Если запускаем на сервер
-# В папку images будут сохраняться капчи при ручном вводе
-MANUAL = True
+# В текущую директория будут сохраняться капчи при ручном вводе (captcha.jpg)
+MANUAL = False
 
 # Так как на один магазин по 4к отзывов доходить может, то чтобы не ломать сайт и чтобы был меньше шанс забанить скрипт, 
 # указываем количество страниц отзывов на магазин.
-REVIEWS_AMOUNT = 3
+REVIEWS_AMOUNT = 10
