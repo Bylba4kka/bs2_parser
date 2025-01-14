@@ -19,11 +19,16 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 from config import BASE_URL, LOGIN, PASSWORD, RUCAPTCHA_API_KEY, MANUAL
 from user_agents import user_agents
 
+if os.name == "nt":
+    log_path = "main.log"
+else:
+    log_path = "/home/bs2_parser/main.log"
+
 logging.basicConfig(
     level=logging.INFO, 
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
     handlers=[logging.StreamHandler(),
-              logging.FileHandler("/home/bs2_parser/main.log", encoding="utf-8")],
+              logging.FileHandler(log_path, encoding="utf-8")],
     
 )
 logger = logging.getLogger(__name__)
@@ -189,7 +194,7 @@ class CookieManager:
                 return True
 
 
-    # @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
+    @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
     async def do_auth(self, session: httpx.AsyncClient):
         """Главная логика авторизации на сайте"""
         session.cookies.clear()

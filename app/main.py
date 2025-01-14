@@ -20,12 +20,18 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 from config import BASE_URL, DB_NAME, REVIEWS_AMOUNT
 from cookie import cookie_manager
 from user_agents import user_agents
+
+if os.name == "nt":
+    log_path = "main.log"
+else:
+    log_path = "/home/bs2_parser/main.log"
+
 logging.basicConfig(
     level=logging.INFO, 
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("/home/bs2_parser/main.log", encoding="utf-8")],
+        logging.FileHandler(log_path, encoding="utf-8")],
 )
 logger = logging.getLogger(__name__)
 
@@ -85,7 +91,7 @@ class Parser:
         )
 
     
-    # @retry(stop=stop_after_attempt(5), wait=wait_fixed(3))
+    @retry(stop=stop_after_attempt(5), wait=wait_fixed(3))
     async def process_request(self, link, session: httpx.AsyncClient) -> httpx.Response:
         """
         Проходит вылезающую капчу при парсинге.
@@ -96,13 +102,16 @@ class Parser:
             r = await session.get(link)
         except ValueError:
             r = await session.get(BASE_URL + link)
-        if r.status_code == 301:
-            print(r.url, "process_request")
-        r.raise_for_status()
-        if r.url == f"{self.base_url}/pass":
+        if r.status_code == 429:
+            logger.info(f"ожидаем 60 секунд перед повторным запросом на {link}")
+            await asyncio.sleep(60)
+        else:
+            r.raise_for_status()
+
+        if "pass" in r.url:
             await cookie_manager.process_captcha(session, pass_flag=True)
             r = await session.get(link)
-        if r.url == f"{self.base_url}/login":
+        if "login" in r.url:
             await cookie_manager.do_auth(session)
             r = await session.get(link)
         return r
@@ -193,8 +202,12 @@ class Parser:
                 # logger.error(f"Нет purchases на ссылке {link}. Ошибка: {ex}")
                 purchases = None
             date_string = review_div.find("span", class_='text-default-150').text.replace("в", " ").strip()
-            date = datetime.strptime(date_string, "%d/%m/%y %H:%M")
-            date = date.strftime("%d/%m/%y %H:%M")
+            try:
+                date = datetime.strptime(date_string, "%d/%m/%y %H:%M")
+                date = date.strftime("%d/%m/%y %H:%M")
+            except Exception as ex:
+                logging.error(f"Произошла ошибка при парсинге даты коментария {link}. Ошибка: {ex}")
+                date = None
             img_link = review_div.find("img", class_='rounded-full w-12 mr-4')["src"]
             if "no-img.png" in img_link:
                 img = None
@@ -228,7 +241,7 @@ class Parser:
         return review_info_list
 
              
-    # @retry(stop=stop_after_attempt(5), wait=wait_fixed(3))
+    @retry(stop=stop_after_attempt(5), wait=wait_fixed(3))
     async def parse_data(self, link):
         """
         Парсинг всей интерисующей нас информации
@@ -373,6 +386,8 @@ class Parser:
                     logger.info(f"Данные успешно записаны в БД (stores) - {link}")
                 else:
                     logger.info(f"Недопустимая ссылка - {link}")
+            except httpx.ConnectTimeout:
+                    logger.error(f"Не удалось установить соединение с {link}.")
             except Exception as ex:
                 logger.error(f"Произошла ошибка при парсинге {link}. Ошибка: {ex}. Детали ошибки: {traceback.format_exc()}")
 
