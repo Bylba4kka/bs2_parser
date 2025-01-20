@@ -51,7 +51,13 @@ class CookieManager:
         proxies = []
         with open("proxies.txt", 'r') as file:
             for line in file:
-                proxies.append(line.strip())
+                parts = line.strip().split(':')
+                host = parts[0]
+                port = parts[1]
+                user = parts[2]
+                password = parts[3]
+                proxy = f"http://{user}:{password}@{host}:{port}"
+                proxies.append(proxy)
         return proxies
 
 
