@@ -51,13 +51,7 @@ class CookieManager:
         proxies = []
         with open("proxies.txt", 'r') as file:
             for line in file:
-                parts = line.strip().split(':')
-                host = parts[0]
-                port = parts[1]
-                user = parts[2]
-                password = parts[3]
-                proxy = f"http://{user}:{password}@{host}:{port}"
-                proxies.append(proxy)
+                proxies.append(line.strip())
         return proxies
 
 
@@ -194,7 +188,7 @@ class CookieManager:
                 return True
 
 
-    @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
+    @retry(stop=stop_after_attempt(5), wait=wait_fixed(3), reraise=True)
     async def do_auth(self, session: httpx.AsyncClient):
         """Главная логика авторизации на сайте"""
         session.cookies.clear()
@@ -231,6 +225,7 @@ class CookieManager:
     async def get_cookies(self):
         """Точка входа для получения куки"""
         proxy = random.choice(self.proxies_list)
+        print(proxy)
         async with httpx.AsyncClient(proxy=proxy, headers=self.headers, timeout=60, follow_redirects=True) as session:
             return await self.do_auth(session)
             cookies = await self.load_cookies()

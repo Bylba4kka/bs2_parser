@@ -48,13 +48,7 @@ class Parser:
         proxies = []
         with open("proxies.txt", 'r') as file:
             for line in file:
-                parts = line.strip().split(':')
-                host = parts[0]
-                port = parts[1]
-                user = parts[2]
-                password = parts[3]
-                proxy = f"http://{user}:{password}@{host}:{port}"
-                proxies.append(proxy)
+                proxies.append(line.strip())
         return proxies
 
     async def database_init(self):
@@ -91,7 +85,7 @@ class Parser:
         )
 
     
-    @retry(stop=stop_after_attempt(5), wait=wait_fixed(3))
+    @retry(stop=stop_after_attempt(5), wait=wait_fixed(3), reraise=True)
     async def process_request(self, link, session: httpx.AsyncClient) -> httpx.Response:
         """
         Проходит вылезающую капчу при парсинге.
@@ -241,7 +235,7 @@ class Parser:
         return review_info_list
 
              
-    @retry(stop=stop_after_attempt(5), wait=wait_fixed(3))
+    @retry(stop=stop_after_attempt(5), wait=wait_fixed(3), reraise=True)
     async def parse_data(self, link):
         """
         Парсинг всей интерисующей нас информации
@@ -465,7 +459,7 @@ parser = Parser()
 # Запуск раз в 24 часа
 if __name__ == '__main__':
     runned_at = datetime.now().strftime('%Y%m%d')
-    # asyncio.run(parser.main()) # При первичном запуске сразу запускаем
+    asyncio.run(parser.main()) # При первичном запуске сразу запускаем
     while True:
         time.sleep(3600)
         now = datetime.now().strftime('%Y%m%d')
