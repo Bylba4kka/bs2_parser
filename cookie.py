@@ -19,10 +19,7 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 from config import BASE_URL, LOGIN, PASSWORD, RUCAPTCHA_API_KEY, MANUAL
 from user_agents import user_agents
 
-if os.name == "nt":
-    log_path = "main.log"
-else:
-    log_path = "/home/bs2_parser/main.log"
+log_path = "main.log"
 
 logging.basicConfig(
     level=logging.INFO, 
@@ -31,6 +28,9 @@ logging.basicConfig(
               logging.FileHandler(log_path, encoding="utf-8")],
     
 )
+logging.getLogger('httpx').setLevel(logging.INFO)
+logging.getLogger('httpcore').setLevel(logging.INFO)
+
 logger = logging.getLogger(__name__)
 
 
@@ -118,15 +118,25 @@ class CookieManager:
     async def get_captcha_image(self, html, session: httpx.AsyncClient):
         """Получить изображение капчи и секретный токен"""
         soup = BeautifulSoup(html, "html.parser")
-        captcha_url = BASE_URL + soup.find("img", id="captcha-img")["src"]
-        captcha_token = soup.find("input",{'type': 'hidden', 'name': '_token'})["value"]
-        r = await session.get(captcha_url, headers=self.headers)
-        r.raise_for_status()
-        captcha_image = r.read()
-        if MANUAL:
-            await self.save_captcha_image(r.content)
-        captcha_base64 = base64.b64encode(captcha_image).decode('utf-8')
-        return captcha_base64, captcha_token
+        try:
+            captcha_url = soup.find("img", id="captcha-img")["src"]
+            if not "http" in captcha_url:
+                captcha_url = BASE_URL + captcha_url
+            captcha_token = soup.find("input",{'type': 'hidden', 'name': '_token'})["value"]
+            r = await session.get(captcha_url, headers=self.headers)
+            r.raise_for_status()
+            captcha_image = r.read()
+            if MANUAL:
+                await self.save_captcha_image(r.content)
+            captcha_base64 = base64.b64encode(captcha_image).decode('utf-8')
+            return captcha_base64, captcha_token
+        except:
+            captcha_base64 = soup.find("img", alt="captcha")["src"]
+            with open("test.txt", "w") as f:
+                f.write(captcha_base64)
+            await self.save_captcha_image(base64.b64decode(captcha_base64.split(",")[1]))
+            return captcha_base64, None
+
 
 
     def captcha_solver(self, captcha_base64):
@@ -147,11 +157,8 @@ class CookieManager:
             url = f"{self.base_url}/login"
         else:
             url = f"{self.base_url}/"
-        for i in range(1, 100):
-            if i == 6:
-                logger.info("Не удалось пройти капчу")
-                return False
-            r = await session.get(url=url, headers=self.headers)
+        for i in range(1, 5):
+            r = await session.get(url=url, headers=self.headers | {"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Referer": f"{self.base_url}/login", "Origin": self.base_url})
             r.raise_for_status()
             html = r.text
             soup = BeautifulSoup(html, "html.parser")
@@ -162,27 +169,38 @@ class CookieManager:
             logger.info(f"Решение капчи - {captcha_solution}")
             # <input class="hidden" name="En&amp;Sq%c" value="$8ci%VWsla"></form>
             if pass_flag:
-                secret_key =  soup.find("input", {'class': 'hidden'})["name"].strip() 
-                secret_value = soup.find("input", {'class': 'hidden'})["value"].strip() 
-                data = {"_token": captcha_token, "captcha": captcha_solution, secret_key: secret_value}
+                try:
+                    secret_key =  soup.find("input", {'class': 'hidden'})["name"].strip() 
+                    secret_value = soup.find("input", {'class': 'hidden'})["value"].strip() 
+                except:
+                    secret_key = None
+                    secret_value = None
+                if captcha_token:
+                    data = {"_token": captcha_token, "captcha": captcha_solution, secret_key: secret_value}
+                    url_check = f"{self.base_url}/check"
+                else:
+                    data = {"captcha": captcha_solution}
+                    url_check = f"{self.base_url}/pmv3skorovsempizda"
             else:
                 {"_token": captcha_token, "captcha": captcha_solution}
             
             if pass_flag:
-                url_condition = self.base_url + "/login/"
+                url_condition = self.base_url + "/login"
                 r = await session.post(
-                        url=f"{self.base_url}/pass",
-                        headers=self.headers | {"Accept": "application/json, text/plain, */*", "Referer": "https://m.bs2site.at/pass"},
+                        url=url_check,
+                        headers=self.headers | {"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8","Accept-Language": "en-US,en;q=0.5"}
+,
                         data=data
                         )
             if login_flag:
                 url_condition = self.base_url + "/"
                 r = await session.post(
                     f"{self.base_url}/login", 
-                    headers=self.headers | {"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Referer": "https://m.bs2site.at/login"}, 
-                    data={"_token": captcha_token, "login": self.login, "password": self.password, "captcha":str(captcha_solution), "v1":"1"}
+                    headers=self.headers | {"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Referer": f"{self.base_url}/login", "Origin": self.base_url}, 
+                    data={"_token": captcha_token, "login": self.login, "password": self.password, "captcha":str(captcha_solution)}
                     )
             print(f"{r.url=}")
+            print(f"{url_condition=}")
             if not r.url == url_condition:
                 with open("error.html", "w", encoding="utf-8") as f:
                     f.write(r.text)
@@ -194,12 +212,15 @@ class CookieManager:
                 return True
 
 
-    @retry(stop=stop_after_attempt(5), wait=wait_fixed(3), reraise=True)
+    # @retry(stop=stop_after_attempt(5), wait=wait_fixed(3), reraise=True)
     async def do_auth(self, session: httpx.AsyncClient):
         """Главная логика авторизации на сайте"""
         session.cookies.clear()
+        print(1)
         await self.process_captcha(session, pass_flag=True)
+        print(2)
         await self.process_captcha(session, login_flag=True)     
+        print(3)
         cookies = session.cookies.jar
         cookies_list = [
             {
@@ -231,8 +252,9 @@ class CookieManager:
     async def get_cookies(self):
         """Точка входа для получения куки"""
         proxy = random.choice(self.proxies_list)
-        print(proxy)
-        async with httpx.AsyncClient(proxy=proxy, headers=self.headers, timeout=60, follow_redirects=True) as session:
+        async with httpx.AsyncClient(proxy=proxy, headers=self.headers, timeout=60, 
+                                     follow_redirects=True
+                                     ) as session:
             return await self.do_auth(session)
             cookies = await self.load_cookies()
             self.proxies_list = self.get_proxies()

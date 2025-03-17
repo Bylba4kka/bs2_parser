@@ -9,22 +9,19 @@ import random
 import re
 import time
 import traceback
-import httpx 
 import asyncio
 import aiosqlite
+import httpx
 
 from datetime import datetime
 from bs4 import BeautifulSoup
 from typing import Any, Optional
 from tenacity import retry, stop_after_attempt, wait_fixed
-from config import BASE_URL, DB_NAME, REVIEWS_AMOUNT
+from config import BASE_URL, DB_NAME
 from cookie import cookie_manager
 from user_agents import user_agents
 
-if os.name == "nt":
-    log_path = "main.log"
-else:
-    log_path = "/home/bs2_parser/main.log"
+log_path = "main.log"
 
 logging.basicConfig(
     level=logging.INFO, 
@@ -33,8 +30,11 @@ logging.basicConfig(
         logging.StreamHandler(),
         logging.FileHandler(log_path, encoding="utf-8")],
 )
-logger = logging.getLogger(__name__)
 
+logging.getLogger('httpx').setLevel(logging.INFO)
+logging.getLogger('httpcore').setLevel(logging.INFO)
+
+logger = logging.getLogger(__name__)
 class Parser:
     def __init__(self):
         self.proxies_list = self.get_proxies()
@@ -67,6 +67,7 @@ class Parser:
         directions TEXT NOT NULL,
         deposite FLOAT NOT NULL,
         reviews JSON,
+        sent BOOL,
         ts DATETIME DEFAULT CURRENT_TIMESTAMP
         );
         """
@@ -85,13 +86,14 @@ class Parser:
         promotions TEXT,
         products JSON,
         reviews JSON,
+        sent BOOL,
         ts DATETIME DEFAULT CURRENT_TIMESTAMP
         );
         """
         )
 
     
-    @retry(stop=stop_after_attempt(5), wait=wait_fixed(3), reraise=True)
+    # @retry(stop=stop_after_attempt(5), wait=wait_fixed(3), reraise=True)
     async def process_request(self, link, session: httpx.AsyncClient) -> httpx.Response:
         """
         Проходит вылезающую капчу при парсинге.
@@ -108,10 +110,10 @@ class Parser:
         else:
             r.raise_for_status()
 
-        if "pass" in r.url:
+        if "pass" in str(r.url):
             await cookie_manager.process_captcha(session, pass_flag=True)
             r = await session.get(link)
-        if "login" in r.url:
+        if "login" in  str(r.url):
             await cookie_manager.do_auth(session)
             r = await session.get(link)
         return r
@@ -124,7 +126,7 @@ class Parser:
         tasks = []
         for link in self.link_list:
             tasks.append(self.parse_data(link))
-            if len(tasks) == 10:
+            if len(tasks) == 40:
                 await asyncio.gather(*tasks)
                 tasks = []
         if len(tasks) != 0:
@@ -158,7 +160,7 @@ class Parser:
         tasks = []
         for page in range(1, paginate + 1):
             tasks.append(self.process_get_links_stores(page, session))
-            if len(tasks) == 10:
+            if len(tasks) == 40:
                 await asyncio.gather(*tasks)
                 tasks = []
         if len(tasks) != 0:
@@ -232,7 +234,7 @@ class Parser:
                 'nickname': nickname,
                 'comment_text': comment_text,
                 'purchases': purchases,
-                'datе': date,
+                'date': date,
                 'img': img,
                 'admin': admin,
                 'rating': float(rating.strip())
@@ -241,14 +243,14 @@ class Parser:
         return review_info_list
 
              
-    @retry(stop=stop_after_attempt(5), wait=wait_fixed(3), reraise=True)
+    # @retry(stop=stop_after_attempt(5), wait=wait_fixed(3), reraise=True)  
     async def parse_data(self, link):
         """
         Парсинг всей интерисующей нас информации
         """
         proxy = random.choice(self.proxies_list)
 
-        async with httpx.AsyncClient(proxy=proxy, cookies=self.cookies, timeout=120, follow_redirects=True, headers=self.headers) as session:
+        async with httpx.AsyncClient(proxy=proxy, cookies=self.cookies, timeout=60, follow_redirects=True, headers=self.headers) as session:
             try:
                 r = await self.process_request(link, session)
                 soup = BeautifulSoup(r.text, "lxml")
@@ -286,6 +288,7 @@ class Parser:
                     logger.info(f"Данные успешно записаны в БД (exchanges) - {link}")
 
                 elif "stores" in link:
+                    link_without_domen = link
                     link = BASE_URL + link
                     # Витрина
                     r = await session.get(link)
@@ -345,7 +348,7 @@ class Parser:
 
                     store_data = {
                         "name": name,
-                        "link": link,
+                        "link": link_without_domen,
                         "sales": sales,
                         "deposite": float(deposite.replace("₿","").strip()),
                         "rating": float(rating.strip()),
@@ -362,8 +365,8 @@ class Parser:
                     await self.sql(
                     """
                     INSERT INTO stores
-                    (name, link, sales, deposite, rating, rules, vacancy, promotions, products, reviews) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (name) 
+                    (name, link, sales, deposite, rating, rules, vacancy, promotions, products, reviews, sent) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, False) ON CONFLICT (name) 
                     DO UPDATE SET
                         name = EXCLUDED.name,
                         link = EXCLUDED.link,
@@ -374,7 +377,8 @@ class Parser:
                         vacancy = EXCLUDED.vacancy,
                         promotions = EXCLUDED.promotions,
                         products = EXCLUDED.products,
-                        reviews = EXCLUDED.reviews;
+                        reviews = EXCLUDED.reviews,
+                        sent = False
                     """,
                     (
                     store_data["name"], store_data["link"], store_data["sales"], store_data["deposite"], 
@@ -403,12 +407,13 @@ class Parser:
             paginate = int(soup.find("a", class_="page--last").text.strip())
         except:
             paginate = 1
-        paginate = min(paginate, REVIEWS_AMOUNT)
+        # paginate = min(paginate, paginate)
+        paginate = min(paginate, 5)
 
         tasks = []
         for page in range(1, paginate + 1):
             tasks.append(self.process_comments(link, page, session))
-            if len(tasks) == 5:
+            if len(tasks) == 40:
                 results = await asyncio.gather(*tasks)
                 for result in results:
                     if isinstance(result, Exception):
@@ -456,21 +461,10 @@ class Parser:
         await self.database_init()
         proxy = random.choice(self.proxies_list)
         self.cookies = await cookie_manager.get_cookies()
-        async with httpx.AsyncClient(cookies=self.cookies, proxy=proxy, headers=self.headers, timeout=120, follow_redirects=True) as session:
+        async with httpx.AsyncClient(cookies=self.cookies, proxy=proxy, headers=self.headers, timeout=60, follow_redirects=True) as session:
             await self.parse(session)
 
 
 
 parser = Parser()
-# Запуск раз в 24 часа
-if __name__ == '__main__':
-    runned_at = datetime.now().strftime('%Y%m%d')
-    asyncio.run(parser.main()) # При первичном запуске сразу запускаем
-    while True:
-        time.sleep(3600)
-        now = datetime.now().strftime('%Y%m%d')
-
-        if runned_at != now:
-            runned_at = datetime.now().strftime('%Y%m%d')
-            
-            asyncio.run(parser.main())
+asyncio.run(parser.main()) 

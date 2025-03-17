@@ -1,7 +1,8 @@
-httpx[socks] 
+httpx 
 2captcha-python
 bs4
 aiofiles
 lxml
 aiosqlite
 tenacity
+aiofiles

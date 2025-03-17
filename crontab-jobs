@@ -1,0 +1,2 @@
+0 9,21 * * * cd /home/bs2_parser && /home/bs2_parser/venv/bin/python3 main.py
+3,13,33,43,53 * * * * cd /home/bs2_parser && /home/bs2_parser/venv/bin/python3 sender.py
